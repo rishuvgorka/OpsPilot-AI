@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
 
 from rag.ingest import ingest_pdf
-from rag.rag_chain import qa_chain
+from graph.workflow import graph
 
 
 UPLOAD_DIR = "uploads"
@@ -46,7 +46,6 @@ def upload_document(request):
         "message": "Document uploaded successfully"
     })
 
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def chat_query(request):
@@ -59,12 +58,13 @@ def chat_query(request):
             status=400,
         )
 
-    response = qa_chain.invoke({
+    result = graph.invoke({
         "query": query
     })
 
     return Response({
-        "response": response["result"]
+        "response": result["response"],
+        "agent": result["agent_type"],
     })
 
 @api_view(["GET"])
