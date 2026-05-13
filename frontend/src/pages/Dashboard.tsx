@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Send,
@@ -6,7 +6,11 @@ import {
   MessageSquare,
   PanelLeft,
   FileText,
+  Bot,
+  LogOut,
 } from "lucide-react";
+
+import { useNavigate } from "react-router-dom";
 
 import ReactMarkdown from "react-markdown";
 
@@ -16,9 +20,12 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   fileName?: string;
+  agent?: string;
 }
 
 function Dashboard() {
+
+  const navigate = useNavigate();
 
   const [query, setQuery] = useState("");
 
@@ -29,6 +36,26 @@ function Dashboard() {
   const [selectedFile, setSelectedFile] =
     useState<File | null>(null);
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+
+  useEffect(() => {
+
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+
+  }, [messages]);
+
+
+  const logout = () => {
+
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+
+    navigate("/login");
+  };
+
 
   const sendMessage = async () => {
 
@@ -38,7 +65,7 @@ function Dashboard() {
 
     try {
 
-      // UPLOAD FILE FIRST
+      // FILE UPLOAD
 
       if (selectedFile) {
 
@@ -61,7 +88,7 @@ function Dashboard() {
       }
 
 
-      // ADD USER MESSAGE
+      // USER MESSAGE
 
       const userMessage: Message = {
         role: "user",
@@ -74,11 +101,10 @@ function Dashboard() {
         userMessage,
       ]);
 
-
       setLoading(true);
 
 
-      // SEND CHAT QUERY
+      // AI RESPONSE
 
       const response = await API.post(
         "/chat/",
@@ -90,6 +116,7 @@ function Dashboard() {
       const assistantMessage: Message = {
         role: "assistant",
         content: response.data.response,
+        agent: response.data.agent,
       };
 
       setMessages((prev) => [
@@ -98,7 +125,9 @@ function Dashboard() {
       ]);
 
     } catch (error) {
+
       console.log(error);
+
     }
 
     setQuery("");
@@ -112,11 +141,30 @@ function Dashboard() {
 
       {/* SIDEBAR */}
 
-      <div className="w-[260px] bg-zinc-950 border-r border-zinc-900 flex flex-col">
+      <div className="w-[270px] bg-zinc-950 border-r border-zinc-900 flex flex-col">
 
-        <div className="p-4 border-b border-zinc-900">
+        {/* LOGO */}
 
-          <button className="w-full flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 transition rounded-xl p-3">
+        <div className="h-16 border-b border-zinc-900 flex items-center px-5">
+
+          <div className="flex items-center gap-3">
+
+            <Bot className="text-blue-500" />
+
+            <h1 className="text-xl font-bold">
+              OpsPilot AI
+            </h1>
+
+          </div>
+
+        </div>
+
+
+        {/* NEW CHAT */}
+
+        <div className="p-4">
+
+          <button className="w-full flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 transition rounded-2xl p-4">
 
             <Plus size={18} />
 
@@ -127,42 +175,65 @@ function Dashboard() {
         </div>
 
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {/* CHAT HISTORY */}
 
-          <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-900 cursor-pointer transition">
+        <div className="flex-1 overflow-y-auto px-3 pb-4">
 
-            <MessageSquare size={18} />
+          <p className="text-xs text-zinc-500 px-3 mb-3">
+            RECENT CHATS
+          </p>
 
-            <span className="text-sm text-zinc-300">
-              Crew scheduling analysis
-            </span>
+          <div className="space-y-2">
+
+            <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-900 cursor-pointer transition">
+
+              <MessageSquare size={18} />
+
+              <span className="text-sm text-zinc-300 truncate">
+                Crew scheduling analysis
+              </span>
+
+            </div>
 
           </div>
 
         </div>
 
 
+        {/* USER */}
+
         <div className="border-t border-zinc-900 p-4">
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between">
 
-            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-bold">
+            <div className="flex items-center gap-3">
 
-              R
+              <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
+
+                R
+
+              </div>
+
+              <div>
+
+                <p className="font-medium">
+                  Rishuv
+                </p>
+
+                <p className="text-xs text-zinc-500">
+                  AI Engineer
+                </p>
+
+              </div>
 
             </div>
 
-            <div>
-
-              <p className="font-medium">
-                Rishuv
-              </p>
-
-              <p className="text-xs text-zinc-400">
-                Pro Plan
-              </p>
-
-            </div>
+            <button
+              onClick={logout}
+              className="hover:bg-zinc-800 p-2 rounded-lg transition"
+            >
+              <LogOut size={18} />
+            </button>
 
           </div>
 
@@ -171,7 +242,7 @@ function Dashboard() {
       </div>
 
 
-      {/* MAIN CHAT AREA */}
+      {/* MAIN SECTION */}
 
       <div className="flex-1 flex flex-col bg-black">
 
@@ -179,12 +250,12 @@ function Dashboard() {
 
         <div className="h-16 border-b border-zinc-900 flex items-center px-6">
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
 
             <PanelLeft size={20} />
 
-            <h1 className="text-xl font-semibold">
-              OpsPilot AI
+            <h1 className="text-lg font-semibold">
+              Multi-Agent AI Workspace
             </h1>
 
           </div>
@@ -200,17 +271,25 @@ function Dashboard() {
 
             <div className="h-full flex flex-col items-center justify-center px-6">
 
-              <h1 className="text-5xl font-bold mb-4 text-center">
+              <div className="w-20 h-20 rounded-3xl bg-zinc-900 flex items-center justify-center mb-8">
 
-                Welcome to OpsPilot AI
+                <Bot size={42} />
+
+              </div>
+
+              <h1 className="text-5xl font-bold mb-5 text-center">
+
+                OpsPilot AI
 
               </h1>
 
-              <p className="text-zinc-400 text-lg text-center max-w-2xl">
+              <p className="text-zinc-400 text-lg text-center max-w-2xl leading-relaxed">
 
-                Upload enterprise documents and
-                ask intelligent questions using
-                AI-powered RAG workflows.
+                Upload enterprise documents,
+                analyze operational workflows,
+                and interact with AI-powered
+                multi-agent systems using
+                LangGraph and RAG pipelines.
 
               </p>
 
@@ -218,7 +297,7 @@ function Dashboard() {
 
           ) : (
 
-            <div className="max-w-4xl mx-auto w-full py-10 px-4 space-y-8">
+            <div className="max-w-5xl mx-auto w-full py-10 px-6 space-y-8">
 
               {messages.map((message, index) => (
 
@@ -239,11 +318,26 @@ function Dashboard() {
                     }`}
                   >
 
+                    {/* AGENT BADGE */}
+
+                    {message.agent && (
+
+                      <div className="mb-4 inline-flex items-center gap-2 bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide">
+
+                        <Bot size={14} />
+
+                        {message.agent} agent
+
+                      </div>
+
+                    )}
+
+
                     {/* FILE CHIP */}
 
                     {message.fileName && (
 
-                      <div className="mb-4 inline-flex items-center gap-2 bg-black/20 px-3 py-2 rounded-xl text-sm">
+                      <div className="mb-4 inline-flex items-center gap-2 bg-black/20 border border-white/10 px-3 py-2 rounded-xl text-sm">
 
                         <FileText size={16} />
 
@@ -258,7 +352,7 @@ function Dashboard() {
 
                     {message.content && (
 
-                      <div className="prose prose-invert max-w-none">
+                      <div className="prose prose-invert max-w-none prose-p:leading-7 prose-pre:bg-black/40">
 
                         <ReactMarkdown>
                           {message.content}
@@ -299,6 +393,9 @@ function Dashboard() {
 
               )}
 
+
+              <div ref={messagesEndRef} />
+
             </div>
 
           )}
@@ -308,11 +405,11 @@ function Dashboard() {
 
         {/* INPUT SECTION */}
 
-        <div className="border-t border-zinc-900 bg-black p-6">
+        <div className="border-t border-zinc-900 bg-black p-5">
 
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto">
 
-            {/* SELECTED FILE PREVIEW */}
+            {/* FILE PREVIEW */}
 
             {selectedFile && (
 
@@ -327,9 +424,11 @@ function Dashboard() {
             )}
 
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-3 flex items-end gap-3">
+            {/* INPUT BOX */}
 
-              {/* UPLOAD */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-3 flex items-end gap-3 shadow-2xl">
+
+              {/* FILE BUTTON */}
 
               <label className="cursor-pointer hover:bg-zinc-800 p-3 rounded-2xl transition">
 
@@ -357,11 +456,14 @@ function Dashboard() {
                   setQuery(e.target.value)
                 }
                 onKeyDown={(e) => {
+
                   if (
                     e.key === "Enter" &&
                     !e.shiftKey
                   ) {
+
                     e.preventDefault();
+
                     sendMessage();
                   }
                 }}
@@ -370,7 +472,7 @@ function Dashboard() {
               />
 
 
-              {/* SEND */}
+              {/* SEND BUTTON */}
 
               <button
                 onClick={sendMessage}
@@ -387,8 +489,8 @@ function Dashboard() {
 
             <p className="text-center text-xs text-zinc-500 mt-3">
 
-              OpsPilot AI can make mistakes.
-              Verify important information.
+              OpsPilot AI may generate inaccurate
+              responses. Verify important outputs.
 
             </p>
 
