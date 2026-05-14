@@ -131,23 +131,27 @@ opspilot-ai/
 
 # Screenshots
 
+## Landing Page
+
+![Landing Page](screenshots/landing-page.png)
+
+---
+
 ## Login Page
-_Add screenshot here_
+
+![Login Page](screenshots/login-page.png)
 
 ---
 
 ## Dashboard
-_Add screenshot here_
+
+![Dashboard](screenshots/dashboard.png)
 
 ---
 
-## Multi-Agent Chat Interface
-_Add screenshot here_
+## Multi-Agent RAG Response
 
----
-
-## PDF Upload + RAG
-_Add screenshot here_
+![RAG Response](screenshots/rag-agent-response.png)
 
 ---
 
@@ -156,7 +160,7 @@ _Add screenshot here_
 ## Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/opspilot-ai.git
+git clone https://github.com/rishuvgorka/OpsPilot-AI.git
 cd opspilot-ai
 ```
 
@@ -184,25 +188,11 @@ DB_HOST=db
 DB_PORT=5432
 
 GOOGLE_API_KEY=your_gemini_api_key
-
-QDRANT_URL=http://qdrant:6333
 ```
 
----
+Secret Key can be anything.
 
-# Frontend Environment Variables
 
-Create:
-
-```text
-frontend/.env
-```
-
-Add:
-
-```env
-VITE_API_URL=http://localhost:8000/api
-```
 
 ---
 
@@ -287,36 +277,6 @@ Analyze trends and risks in crew scheduling.
 
 ---
 
-# API Endpoints
-
-## Authentication
-
-```http
-POST /api/auth/register/
-POST /api/auth/login/
-POST /api/auth/refresh/
-```
-
----
-
-## Chat
-
-```http
-POST /api/chat/
-GET /api/sessions/
-GET /api/sessions/<id>/
-```
-
----
-
-## Uploads
-
-```http
-POST /api/upload/
-```
-
----
-
 # Key Engineering Highlights
 
 - Production-grade AI architecture
@@ -340,23 +300,3 @@ POST /api/upload/
 - OCR support
 - CSV analytics engine
 - Multi-modal support
-
----
-
-# Resume Description
-
-Built a production-grade multi-agent Generative AI platform using React, Django, LangChain, LangGraph, Gemini, and Qdrant with RAG pipelines, vector search, conversational memory, JWT authentication, persistent chat workflows, and intelligent agent orchestration.
-
----
-
-# Author
-
-Rishuv Gorka
-
-IIT Bombay — Electrical Engineering
-
----
-
-# License
-
-MIT License
