@@ -8,28 +8,32 @@ from langchain_qdrant import QdrantVectorStore
 
 from .gemini import embeddings
 
-COLLECTION_NAME = "opspilot_docs"
 
 client = QdrantClient(
     url="http://qdrant:6333"
 )
 
+COLLECTION_NAME = "opspilot_docs"
+
+
 collections = client.get_collections().collections
 
 collection_names = [
-    collection.name
-    for collection in collections
+    c.name for c in collections
 ]
 
+
+# CREATE COLLECTION ONLY IF NOT EXISTS
 if COLLECTION_NAME not in collection_names:
 
     client.create_collection(
         collection_name=COLLECTION_NAME,
         vectors_config=VectorParams(
-            size=768,
+            size=3072,
             distance=Distance.COSINE,
         ),
     )
+
 
 vector_store = QdrantVectorStore(
     client=client,

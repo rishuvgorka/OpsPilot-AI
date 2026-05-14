@@ -16,12 +16,21 @@ import ReactMarkdown from "react-markdown";
 
 import API from "../services/api";
 
+
 interface Message {
   role: "user" | "assistant";
   content: string;
   fileName?: string;
   agent?: string;
+  sources?: string[];
 }
+
+
+interface ChatSession {
+  id: number;
+  title: string;
+}
+
 
 function Dashboard() {
 
@@ -36,7 +45,15 @@ function Dashboard() {
   const [selectedFile, setSelectedFile] =
     useState<File | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [sessions, setSessions] = useState<
+    ChatSession[]
+  >([]);
+
+  const [sessionId, setSessionId] =
+    useState<number | null>(null);
+
+  const messagesEndRef =
+    useRef<HTMLDivElement>(null);
 
 
   useEffect(() => {
@@ -48,81 +65,193 @@ function Dashboard() {
   }, [messages]);
 
 
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+
+  const fetchSessions = async () => {
+
+    try {
+
+      const response = await API.get(
+        "/sessions/"
+      );
+
+      setSessions(response.data);
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+  };
+
+
+  const createNewSession = async () => {
+
+    try {
+
+      const response = await API.post(
+        "/sessions/create/"
+      );
+
+      const newSessionId =
+        response.data.session_id;
+
+      setSessionId(newSessionId);
+
+      setMessages([]);
+
+      setQuery("");
+
+      setSelectedFile(null);
+
+      fetchSessions();
+
+      return newSessionId;
+
+    } catch (error) {
+
+      console.log(error);
+
+      return null;
+    }
+  };
+
+
+  const loadSession = async (
+    session: ChatSession
+  ) => {
+
+    try {
+
+      const response = await API.get(
+        `/sessions/${session.id}/`
+      );
+
+      setSessionId(session.id);
+
+      setMessages(response.data);
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+  };
+
+
   const logout = () => {
 
     localStorage.removeItem("access");
+
     localStorage.removeItem("refresh");
 
     navigate("/login");
   };
 
 
-  const sendMessage = async () => {
+  const uploadFile = async (
+    currentSessionId: number
+  ) => {
 
-    if (!query.trim() && !selectedFile) return;
+    if (!selectedFile) return;
 
-    let uploadedFileName = "";
+    const formData = new FormData();
+
+    formData.append(
+      "file",
+      selectedFile
+    );
+
+    formData.append(
+      "session_id",
+      String(currentSessionId)
+    );
 
     try {
 
-      // FILE UPLOAD
+      await API.post(
+        "/upload/",
+        formData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+  };
+
+
+  const sendMessage = async () => {
+
+    if (!query.trim()) return;
+
+    let currentSessionId = sessionId;
+
+    if (!currentSessionId) {
+
+      currentSessionId =
+        await createNewSession();
+
+      if (!currentSessionId) return;
+    }
+
+    const userMessage: Message = {
+      role: "user",
+      content: query,
+      fileName: selectedFile?.name,
+    };
+
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+    ]);
+
+    setLoading(true);
+
+    try {
 
       if (selectedFile) {
 
-        uploadedFileName = selectedFile.name;
-
-        const formData = new FormData();
-
-        formData.append("file", selectedFile);
-
-        await API.post(
-          "/upload/",
-          formData,
-          {
-            headers: {
-              "Content-Type":
-                "multipart/form-data",
-            },
-          }
+        await uploadFile(
+          currentSessionId
         );
       }
-
-
-      // USER MESSAGE
-
-      const userMessage: Message = {
-        role: "user",
-        content: query,
-        fileName: uploadedFileName || undefined,
-      };
-
-      setMessages((prev) => [
-        ...prev,
-        userMessage,
-      ]);
-
-      setLoading(true);
-
-
-      // AI RESPONSE
 
       const response = await API.post(
         "/chat/",
         {
           query,
+          session_id:
+            currentSessionId,
         }
       );
 
       const assistantMessage: Message = {
         role: "assistant",
-        content: response.data.response,
-        agent: response.data.agent,
+        content:
+          response.data.response,
+        agent:
+          response.data.agent,
+        sources:
+          response.data.sources,
       };
 
       setMessages((prev) => [
         ...prev,
         assistantMessage,
       ]);
+
+      fetchSessions();
 
     } catch (error) {
 
@@ -131,8 +260,22 @@ function Dashboard() {
     }
 
     setQuery("");
+
     setSelectedFile(null);
+
     setLoading(false);
+  };
+
+
+  const newChat = () => {
+
+    setMessages([]);
+
+    setSessionId(null);
+
+    setQuery("");
+
+    setSelectedFile(null);
   };
 
 
@@ -142,8 +285,6 @@ function Dashboard() {
       {/* SIDEBAR */}
 
       <div className="w-[270px] bg-zinc-950 border-r border-zinc-900 flex flex-col">
-
-        {/* LOGO */}
 
         <div className="h-16 border-b border-zinc-900 flex items-center px-5">
 
@@ -160,11 +301,12 @@ function Dashboard() {
         </div>
 
 
-        {/* NEW CHAT */}
-
         <div className="p-4">
 
-          <button className="w-full flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 transition rounded-2xl p-4">
+          <button
+            onClick={newChat}
+            className="w-full flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 transition rounded-2xl p-4"
+          >
 
             <Plus size={18} />
 
@@ -175,8 +317,6 @@ function Dashboard() {
         </div>
 
 
-        {/* CHAT HISTORY */}
-
         <div className="flex-1 overflow-y-auto px-3 pb-4">
 
           <p className="text-xs text-zinc-500 px-3 mb-3">
@@ -185,22 +325,34 @@ function Dashboard() {
 
           <div className="space-y-2">
 
-            <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-900 cursor-pointer transition">
+            {sessions.map((session) => (
 
-              <MessageSquare size={18} />
+              <div
+                key={session.id}
+                onClick={() =>
+                  loadSession(session)
+                }
+                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition ${
+                  session.id === sessionId
+                    ? "bg-zinc-800"
+                    : "hover:bg-zinc-900"
+                }`}
+              >
 
-              <span className="text-sm text-zinc-300 truncate">
-                Crew scheduling analysis
-              </span>
+                <MessageSquare size={18} />
 
-            </div>
+                <span className="text-sm text-zinc-300 truncate">
+                  {session.title}
+                </span>
+
+              </div>
+
+            ))}
 
           </div>
 
         </div>
 
-
-        {/* USER */}
 
         <div className="border-t border-zinc-900 p-4">
 
@@ -242,11 +394,9 @@ function Dashboard() {
       </div>
 
 
-      {/* MAIN SECTION */}
+      {/* MAIN */}
 
       <div className="flex-1 flex flex-col bg-black">
-
-        {/* TOPBAR */}
 
         <div className="h-16 border-b border-zinc-900 flex items-center px-6">
 
@@ -288,8 +438,7 @@ function Dashboard() {
                 Upload enterprise documents,
                 analyze operational workflows,
                 and interact with AI-powered
-                multi-agent systems using
-                LangGraph and RAG pipelines.
+                multi-agent systems.
 
               </p>
 
@@ -318,8 +467,6 @@ function Dashboard() {
                     }`}
                   >
 
-                    {/* AGENT BADGE */}
-
                     {message.agent && (
 
                       <div className="mb-4 inline-flex items-center gap-2 bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide">
@@ -331,9 +478,6 @@ function Dashboard() {
                       </div>
 
                     )}
-
-
-                    {/* FILE CHIP */}
 
                     {message.fileName && (
 
@@ -347,16 +491,35 @@ function Dashboard() {
 
                     )}
 
+                    <div className="prose prose-invert max-w-none prose-p:leading-7 prose-pre:bg-black/40">
 
-                    {/* MESSAGE */}
+                      <ReactMarkdown>
+                        {message.content}
+                      </ReactMarkdown>
 
-                    {message.content && (
+                    </div>
 
-                      <div className="prose prose-invert max-w-none prose-p:leading-7 prose-pre:bg-black/40">
+                    {message.sources &&
+                      message.sources.length > 0 && (
 
-                        <ReactMarkdown>
-                          {message.content}
-                        </ReactMarkdown>
+                      <div className="mt-6 space-y-3">
+
+                        <div className="text-sm text-zinc-400 font-medium">
+                          Sources
+                        </div>
+
+                        {message.sources.map(
+                          (source, idx) => (
+
+                            <div
+                              key={idx}
+                              className="bg-black/30 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-300"
+                            >
+                              {source}
+                            </div>
+
+                          )
+                        )}
 
                       </div>
 
@@ -367,9 +530,6 @@ function Dashboard() {
                 </div>
 
               ))}
-
-
-              {/* LOADING */}
 
               {loading && (
 
@@ -393,7 +553,6 @@ function Dashboard() {
 
               )}
 
-
               <div ref={messagesEndRef} />
 
             </div>
@@ -403,13 +562,11 @@ function Dashboard() {
         </div>
 
 
-        {/* INPUT SECTION */}
+        {/* INPUT */}
 
         <div className="border-t border-zinc-900 bg-black p-5">
 
           <div className="max-w-5xl mx-auto">
-
-            {/* FILE PREVIEW */}
 
             {selectedFile && (
 
@@ -423,12 +580,7 @@ function Dashboard() {
 
             )}
 
-
-            {/* INPUT BOX */}
-
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-3 flex items-end gap-3 shadow-2xl">
-
-              {/* FILE BUTTON */}
 
               <label className="cursor-pointer hover:bg-zinc-800 p-3 rounded-2xl transition">
 
@@ -445,9 +597,6 @@ function Dashboard() {
                 />
 
               </label>
-
-
-              {/* TEXTAREA */}
 
               <textarea
                 rows={1}
@@ -471,9 +620,6 @@ function Dashboard() {
                 className="flex-1 bg-transparent outline-none resize-none max-h-40 py-3 text-zinc-100 placeholder:text-zinc-500"
               />
 
-
-              {/* SEND BUTTON */}
-
               <button
                 onClick={sendMessage}
                 disabled={loading}
@@ -485,7 +631,6 @@ function Dashboard() {
               </button>
 
             </div>
-
 
             <p className="text-center text-xs text-zinc-500 mt-3">
 

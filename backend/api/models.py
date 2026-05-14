@@ -22,6 +22,30 @@ class ChatSession(models.Model):
         return self.title
 
 
+class UploadedDocument(models.Model):
+
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+
+    file_name = models.CharField(
+        max_length=255
+    )
+
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    qdrant_doc_id = models.CharField(
+        max_length=255
+    )
+
+    def __str__(self):
+        return self.file_name
+
+
 class Message(models.Model):
 
     ROLE_CHOICES = (
